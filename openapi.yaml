@@ -1,0 +1,1538 @@
+openapi: 3.0.3
+info:
+  title: DivvyDoo API
+  description: API for expense splitting and group payment management
+  version: 1.0.0
+  contact:
+    name: DivvyDoo Team
+
+servers:
+  - url: http://localhost:8080/v1
+    description: Local development server
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Authentication
+    description: User authentication endpoints
+  - name: Users
+    description: User management endpoints
+  - name: Groups
+    description: Group management endpoints
+  - name: Expenses
+    description: Expense management endpoints
+  - name: Balances
+    description: Balance tracking endpoints
+  - name: Settlements
+    description: Settlement/payment endpoints
+
+paths:
+  /login:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate user
+      description: Authenticate user with email and password to get a JWT token
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Successfully authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users:
+    post:
+      tags:
+        - Users
+      summary: Create a new user
+      description: Register a new user account
+      operationId: createUser
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+      responses:
+        '201':
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid request body or validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User with email already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /user-lookup:
+    get:
+      tags:
+        - Users
+      summary: Look up user by email or phone
+      description: Search for a user by their email address or phone number. Returns limited user info for privacy.
+      operationId: lookupUser
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Email address or phone number to search for
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserLookupResult'
+        '400':
+          description: Missing query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+        - BearerAuth: []
+
+  /users/{id}:
+    get:
+      tags:
+        - Users
+      summary: Get user profile
+      description: Get user profile by user ID. Users can only access their own profile.
+      operationId: getUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - cannot access other user's profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Users
+      summary: Update user profile
+      description: Update user profile. Users can only update their own profile.
+      operationId: updateUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - cannot update other user's profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/{id}/expenses:
+    get:
+      tags:
+        - Expenses
+      summary: Get user's expenses
+      description: Get all expenses for a user. Users can only access their own expenses.
+      operationId: getUserExpenses
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Number of items to return (default 20)
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          description: Number of items to skip (default 0)
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Expenses retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Expense'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - cannot access other user's expenses
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/{id}/balances:
+    get:
+      tags:
+        - Balances
+      summary: Get user's balance summary
+      description: Get balance summary for a user including total balance, group balances, and peer balances. Users can only access their own balances.
+      operationId: getUserBalances
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: User ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Balance summary retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserBalanceSummary'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - cannot access other user's balances
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /groups:
+    post:
+      tags:
+        - Groups
+      summary: Create a new group
+      description: Create a new expense sharing group. The creator becomes the admin.
+      operationId: createGroup
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateGroupRequest'
+      responses:
+        '201':
+          description: Group created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /groups/{id}:
+    get:
+      tags:
+        - Groups
+      summary: Get group details
+      description: Get group details by group ID. User must be a member of the group.
+      operationId: getGroup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Group retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Group'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not a member of the group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /groups/{id}/members:
+    get:
+      tags:
+        - Groups
+      summary: Get group members
+      description: Get all members of a group. User must be a member of the group.
+      operationId: getGroupMembers
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Members retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MemberWithUser'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not a member of the group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - Groups
+      summary: Add member to group
+      description: Add a new member to a group. User must be an admin of the group.
+      operationId: addGroupMember
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddMemberRequest'
+      responses:
+        '200':
+          description: Member added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not an admin of the group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Group or user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /groups/{id}/members/{memberId}:
+    delete:
+      tags:
+        - Groups
+      summary: Remove member from group
+      description: Remove a member from a group. User must be an admin of the group.
+      operationId: removeGroupMember
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: string
+        - name: memberId
+          in: path
+          required: true
+          description: Member's User ID to remove
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Member removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not an admin of the group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Group or member not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /groups/{id}/leave:
+    post:
+      tags:
+        - Groups
+      summary: Leave a group
+      description: Leave a group. User must be a member of the group.
+      operationId: leaveGroup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Left group successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not a member of the group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /groups/{id}/expenses:
+    get:
+      tags:
+        - Expenses
+      summary: Get group expenses
+      description: Get all expenses for a group. User must be a member of the group.
+      operationId: getGroupExpenses
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: string
+        - name: limit
+          in: query
+          required: false
+          description: Number of items to return (default 20)
+          schema:
+            type: integer
+            default: 20
+        - name: offset
+          in: query
+          required: false
+          description: Number of items to skip (default 0)
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: Expenses retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Expense'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not a member of the group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /groups/{id}/balances:
+    get:
+      tags:
+        - Balances
+      summary: Get group balances
+      description: Get balance summary for all members of a group. User must be a member of the group.
+      operationId: getGroupBalances
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Group ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Balances retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserBalanceSummary'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not a member of the group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /expenses:
+    post:
+      tags:
+        - Expenses
+      summary: Create a new expense
+      description: Create a new expense. If group_id is provided, user must be a member of the group.
+      operationId: createExpense
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExpenseRequest'
+      responses:
+        '201':
+          description: Expense created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not a member of the group
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /expenses/{id}:
+    get:
+      tags:
+        - Expenses
+      summary: Get expense details
+      description: Get expense details by expense ID. User must be part of the expense.
+      operationId: getExpense
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Expense ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Expense retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not part of the expense
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Expense not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /settlements:
+    post:
+      tags:
+        - Settlements
+      summary: Create a settlement
+      description: Create a settlement record to track a payment between users. The from_user_id must match the authenticated user.
+      operationId: createSettlement
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSettlementRequest'
+      responses:
+        '201':
+          description: Settlement created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settlement'
+        '400':
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - can only create settlements from yourself
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /settlements/{id}:
+    get:
+      tags:
+        - Settlements
+      summary: Get settlement details
+      description: Get settlement details by settlement ID. User must be involved in the settlement.
+      operationId: getSettlement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Settlement ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Settlement retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Settlement'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not involved in the settlement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Settlement not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /settlements/{id}/complete:
+    put:
+      tags:
+        - Settlements
+      summary: Complete a settlement
+      description: Mark a settlement as completed. User must be involved in the settlement.
+      operationId: completeSettlement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Settlement ID
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteSettlementRequest'
+      responses:
+        '200':
+          description: Settlement completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not involved in the settlement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Settlement not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /settlements/{id}/cancel:
+    put:
+      tags:
+        - Settlements
+      summary: Cancel a settlement
+      description: Cancel a pending settlement. User must be involved in the settlement.
+      operationId: cancelSettlement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Settlement ID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Settlement cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden - not involved in the settlement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Settlement not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /settlements/pending:
+    get:
+      tags:
+        - Settlements
+      summary: Get pending settlements
+      description: Get all pending settlements for the authenticated user.
+      operationId: getPendingSettlements
+      responses:
+        '200':
+          description: Pending settlements retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Settlement'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token obtained from the login endpoint
+
+  schemas:
+    # Request Schemas
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          description: User's password
+          example: secretpassword123
+
+    CreateUserRequest:
+      type: object
+      required:
+        - name
+        - email
+        - password
+      properties:
+        name:
+          type: string
+          description: User's full name
+          example: John Doe
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: john@example.com
+        password:
+          type: string
+          format: password
+          minLength: 8
+          description: User's password (minimum 8 characters)
+          example: secretpassword123
+        phone:
+          type: string
+          description: User's phone number
+          example: "+1234567890"
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: User's full name
+          example: John Doe
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: john@example.com
+        phone:
+          type: string
+          description: User's phone number
+          example: "+1234567890"
+
+    CreateGroupRequest:
+      type: object
+      required:
+        - name
+        - currency
+      properties:
+        name:
+          type: string
+          description: Group name
+          example: Roommates
+        currency:
+          type: string
+          description: Default currency for the group
+          example: USD
+
+    AddMemberRequest:
+      type: object
+      required:
+        - user_id
+      properties:
+        user_id:
+          type: string
+          description: User ID to add to the group
+          example: usr_abc123
+        role:
+          type: string
+          enum:
+            - admin
+            - member
+          default: member
+          description: Role of the member in the group
+          example: member
+
+    CreateExpenseRequest:
+      type: object
+      required:
+        - title
+        - amount
+        - currency
+        - paid_by
+        - split
+      properties:
+        group_id:
+          type: string
+          description: Group ID (optional for personal expenses)
+          example: grp_abc123
+        title:
+          type: string
+          description: Expense title/description
+          example: Dinner at restaurant
+        amount:
+          type: number
+          format: double
+          description: Total expense amount
+          example: 100.50
+        currency:
+          type: string
+          description: Currency code
+          example: USD
+        paid_by:
+          type: array
+          description: Users who paid for the expense
+          items:
+            $ref: '#/components/schemas/PaidByItem'
+        split:
+          $ref: '#/components/schemas/ExpenseSplit'
+
+    CreateSettlementRequest:
+      type: object
+      required:
+        - from_user_id
+        - to_user_id
+        - amount
+        - currency
+        - method
+      properties:
+        from_user_id:
+          type: string
+          description: User ID of the payer (must match authenticated user)
+          example: usr_abc123
+        to_user_id:
+          type: string
+          description: User ID of the recipient
+          example: usr_def456
+        group_id:
+          type: string
+          description: Group ID (optional)
+          example: grp_abc123
+        amount:
+          type: number
+          format: double
+          minimum: 0.01
+          description: Settlement amount
+          example: 50.00
+        currency:
+          type: string
+          description: Currency code
+          example: USD
+        method:
+          type: string
+          enum:
+            - cash
+            - bank_transfer
+            - upi
+            - paypal
+            - venmo
+            - other
+          description: Payment method
+          example: bank_transfer
+        description:
+          type: string
+          description: Optional description
+          example: Paying back for dinner
+
+    CompleteSettlementRequest:
+      type: object
+      properties:
+        transaction_id:
+          type: string
+          description: Optional external transaction ID
+          example: txn_12345
+
+    # Response Schemas
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: JWT authentication token
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        user:
+          $ref: '#/components/schemas/User'
+
+    UserLookupResult:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: User ID
+          example: usr_abc123
+        name:
+          type: string
+          description: User's full name
+          example: John Doe
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: john@example.com
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: MongoDB ObjectID
+          example: 507f1f77bcf86cd799439011
+        user_id:
+          type: string
+          description: User ID
+          example: usr_abc123
+        name:
+          type: string
+          description: User's full name
+          example: John Doe
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: john@example.com
+        phone:
+          type: string
+          description: User's phone number
+          example: "+1234567890"
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    Group:
+      type: object
+      properties:
+        id:
+          type: string
+          description: MongoDB ObjectID
+          example: 507f1f77bcf86cd799439011
+        group_id:
+          type: string
+          description: Group ID
+          example: grp_abc123
+        name:
+          type: string
+          description: Group name
+          example: Roommates
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupMember'
+        currency:
+          type: string
+          description: Default currency
+          example: USD
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        is_active:
+          type: boolean
+          description: Whether the group is active
+          example: true
+
+    GroupMember:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: User ID
+          example: usr_abc123
+        role:
+          type: string
+          enum:
+            - admin
+            - member
+          description: Member's role in the group
+          example: member
+        joined_at:
+          type: string
+          format: date-time
+          description: When the member joined
+        is_active:
+          type: boolean
+          description: Whether the member is active
+          example: true
+
+    MemberWithUser:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: User ID
+          example: usr_abc123
+        name:
+          type: string
+          description: User's full name
+          example: John Doe
+        email:
+          type: string
+          format: email
+          description: User's email address
+          example: john@example.com
+        role:
+          type: string
+          enum:
+            - admin
+            - member
+          description: Member's role in the group
+          example: member
+        joined_at:
+          type: string
+          format: date-time
+          description: When the member joined
+        is_active:
+          type: boolean
+          description: Whether the member is active
+          example: true
+
+    Expense:
+      type: object
+      properties:
+        id:
+          type: string
+          description: MongoDB ObjectID
+          example: 507f1f77bcf86cd799439011
+        expense_id:
+          type: string
+          description: Expense ID
+          example: exp_abc123
+        group_id:
+          type: string
+          description: Group ID (null for personal expenses)
+          example: grp_abc123
+        creator_id:
+          type: string
+          description: User ID of the expense creator
+          example: usr_abc123
+        title:
+          type: string
+          description: Expense title
+          example: Dinner at restaurant
+        amount:
+          type: number
+          format: double
+          description: Total expense amount
+          example: 100.50
+        currency:
+          type: string
+          description: Currency code
+          example: USD
+        paid_by:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaidByItem'
+        split:
+          $ref: '#/components/schemas/ExpenseSplit'
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        is_deleted:
+          type: boolean
+          description: Whether the expense is deleted
+          example: false
+
+    PaidByItem:
+      type: object
+      required:
+        - user_id
+        - amount
+      properties:
+        user_id:
+          type: string
+          description: User ID of the payer
+          example: usr_abc123
+        amount:
+          type: number
+          format: double
+          description: Amount paid by this user
+          example: 50.25
+
+    ExpenseSplit:
+      type: object
+      required:
+        - type
+        - details
+      properties:
+        type:
+          type: string
+          enum:
+            - equal
+            - exact
+            - percentage
+            - shares
+          description: Split type
+          example: equal
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/SplitDetail'
+
+    SplitDetail:
+      type: object
+      required:
+        - user_id
+        - value
+      properties:
+        user_id:
+          type: string
+          description: User ID
+          example: usr_abc123
+        value:
+          type: number
+          format: double
+          description: Amount, percentage, or number of shares depending on split type
+          example: 25.5
+
+    Settlement:
+      type: object
+      properties:
+        id:
+          type: string
+          description: MongoDB ObjectID
+          example: 507f1f77bcf86cd799439011
+        settlement_id:
+          type: string
+          description: Settlement ID
+          example: stl_abc123
+        from_user_id:
+          type: string
+          description: User ID of the payer
+          example: usr_abc123
+        to_user_id:
+          type: string
+          description: User ID of the recipient
+          example: usr_def456
+        group_id:
+          type: string
+          description: Group ID (optional)
+          example: grp_abc123
+        amount:
+          type: number
+          format: double
+          description: Settlement amount
+          example: 50.00
+        currency:
+          type: string
+          description: Currency code
+          example: USD
+        status:
+          type: string
+          enum:
+            - pending
+            - completed
+            - failed
+            - cancelled
+          description: Settlement status
+          example: pending
+        method:
+          type: string
+          enum:
+            - cash
+            - bank_transfer
+            - upi
+            - paypal
+            - venmo
+            - other
+          description: Payment method
+          example: bank_transfer
+        description:
+          type: string
+          description: Optional description
+          example: Paying back for dinner
+        transaction_id:
+          type: string
+          description: External transaction ID
+          example: txn_12345
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        completed_at:
+          type: string
+          format: date-time
+          description: Completion timestamp
+        failed_at:
+          type: string
+          format: date-time
+          description: Failure timestamp
+        failure_reason:
+          type: string
+          description: Reason for failure
+
+    UserBalanceSummary:
+      type: object
+      properties:
+        user_id:
+          type: string
+          description: User ID
+          example: usr_abc123
+        total_balance:
+          type: number
+          format: double
+          description: Total balance across all groups (positive = owed to you)
+          example: 150.50
+        group_balances:
+          type: array
+          items:
+            $ref: '#/components/schemas/GroupBalance'
+        peer_balances:
+          type: array
+          items:
+            $ref: '#/components/schemas/PeerBalance'
+        currency:
+          type: string
+          description: Currency code
+          example: USD
+        last_updated:
+          type: string
+          format: date-time
+          description: Last balance update timestamp
+
+    GroupBalance:
+      type: object
+      properties:
+        group_id:
+          type: string
+          description: Group ID
+          example: grp_abc123
+        group_name:
+          type: string
+          description: Group name
+          example: Roommates
+        balance:
+          type: number
+          format: double
+          description: Balance in this group (positive = owed to you)
+          example: 75.25
+
+    PeerBalance:
+      type: object
+      properties:
+        peer_id:
+          type: string
+          description: Other user's ID
+          example: usr_def456
+        peer_name:
+          type: string
+          description: Other user's name
+          example: Jane Smith
+        balance:
+          type: number
+          format: double
+          description: Balance with this peer (positive = they owe you, negative = you owe them)
+          example: -25.00
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Success message
+          example: Operation completed successfully
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+          example: Invalid request body
