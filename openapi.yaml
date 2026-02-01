@@ -314,6 +314,28 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   /groups:
+    get:
+      tags:
+        - Groups
+      summary: Get user's groups
+      description: Get all groups that the authenticated user is a member of.
+      operationId: getUserGroups
+      responses:
+        '200':
+          description: Groups retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Group'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
     post:
       tags:
         - Groups

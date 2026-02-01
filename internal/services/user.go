@@ -13,8 +13,9 @@ import (
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid email or password")
-	ErrUserNotFound       = errors.New("user not found")
+	ErrInvalidCredentials  = errors.New("invalid email or password")
+	ErrUserNotFound        = errors.New("user not found")
+	ErrUserAlreadyExists   = errors.New("user with this email already exists")
 )
 
 type UserService struct {
@@ -49,6 +50,15 @@ type LoginResponse struct {
 }
 
 func (s *UserService) CreateUser(ctx context.Context, req CreateUserRequest) (*models.User, error) {
+	// Check if user with this email already exists
+	existingUser, err := s.userRepo.GetByEmail(ctx, req.Email)
+	if err == nil && existingUser != nil {
+		return nil, ErrUserAlreadyExists
+	}
+	if err != nil && !errors.Is(err, repositories.ErrUserNotFound) {
+		return nil, err
+	}
+
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
