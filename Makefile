@@ -19,12 +19,12 @@ help:
 
 install:
 	@echo -e "$(YELLOW)Installing backend dependencies...$(NC)"
-	cd backend && go mod download
+	go mod download
 
 build: 
 	@echo -e "$(YELLOW)Building backend...$(NC)"
-	cd backend && go build -o ../bin/divvydoo-backend main.go
+	go build -o ../bin/divvydoo-backend main.go
 
 dev:
 	@echo -e "$(YELLOW)Running backend...$(NC)"
-	cd backend && go run cmd/api/main.go
+	go run cmd/api/main.go

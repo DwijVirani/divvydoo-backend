@@ -3,6 +3,7 @@ package utils
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,6 +33,13 @@ func GetStatusCode(err error) int {
 	case *CustomError:
 		return err.StatusCode
 	default:
+		errMsg := err.Error()
+		if strings.Contains(errMsg, "not found") {
+			return http.StatusNotFound
+		}
+		if strings.Contains(errMsg, "already exists") {
+			return http.StatusConflict
+		}
 		return http.StatusInternalServerError
 	}
 }

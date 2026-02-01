@@ -25,6 +25,8 @@ func main() {
 	// Load configuration
 	cfg := config.LoadConfig()
 
+	log.Printf("Using MongoDB URI: %s", cfg.MongoURI)
+
 	// Initialize MongoDB client
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -69,6 +71,7 @@ func main() {
 	expenseController := controllers.NewExpenseController(expenseService)
 	balanceController := controllers.NewBalanceController(balanceService)
 	settlementController := controllers.NewSettlementController(settlementService)
+	docsController := controllers.NewDocsController()
 
 	// Set up Gin router
 	router := gin.Default()
@@ -85,6 +88,10 @@ func main() {
 		public.POST("/users", userController.CreateUser)
 	}
 
+	// Docs endpoints (public)
+	router.GET("/docs", docsController.GetOpenAPISpec)
+	router.GET("/docs/openapi.yaml", docsController.GetOpenAPIYAML)
+
 	// Authenticated routes
 	private := router.Group("/v1")
 	private.Use(authMiddleware.Authenticate())
@@ -95,6 +102,7 @@ func main() {
 		private.PUT("/users/:id", userController.UpdateUser)
 
 		// Group routes
+		private.GET("/groups", groupController.GetUserGroups)
 		private.POST("/groups", groupController.CreateGroup)
 		private.GET("/groups/:id", groupController.GetGroup)
 		private.GET("/groups/:id/members", groupController.GetMembers)

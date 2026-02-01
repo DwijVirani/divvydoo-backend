@@ -4,6 +4,8 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -24,9 +26,12 @@ type Config struct {
 }
 
 func LoadConfig() *Config {
+	// Load .env file if it exists (ignore error if not found)
+	_ = godotenv.Load()
+
 	cfg := &Config{
 		ServerPort:         getEnv("SERVER_PORT", "8080"),
-		MongoURI:           getEnv("MONGO_URI", "mongodb://localhost:27017"),
+		MongoURI:           getEnv("MONGO_URI", "mongodb://127.0.0.1:27017/?replicaSet=rs0"),
 		MongoDBName:        getEnv("MONGO_DB_NAME", "divvydoo"),
 		JWTSecret:          getEnv("JWT_SECRET", "default-secret-key"),
 		RedisAddr:          getEnv("REDIS_ADDR", "localhost:6379"),
