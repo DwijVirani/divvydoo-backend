@@ -8,7 +8,7 @@ services:
       - "8080:8080"
     environment:
       - SERVER_PORT=8080
-      - MONGO_URI=mongodb://mongodb:27017/?replicaSet=rs0
+      - MONGO_URI=mongodb://172.28.0.10:27017/?replicaSet=rs0
       - MONGO_DB_NAME=divvydoo
       - JWT_SECRET=${JWT_SECRET:-change-me-in-production}
       - JWT_EXPIRATION_HOURS=24
@@ -24,10 +24,15 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    extra_hosts:
+      - "mongodb:172.28.0.10"
+    networks:
+      - divvydoo-network
 
   mongodb:
     image: mongo:7
     container_name: divvydoo-mongodb
+    hostname: mongodb
     ports:
       - "27017:27017"
     volumes:
@@ -39,6 +44,9 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+    networks:
+      divvydoo-network:
+        ipv4_address: 172.28.0.10
 
   mongo-init:
     image: mongo:7
@@ -55,7 +63,7 @@ services:
           print('Initializing replica set...');
           rs.initiate({
             _id: 'rs0',
-            members: [{ _id: 0, host: 'mongodb:27017' }]
+            members: [{ _id: 0, host: '172.28.0.10:27017' }]
           });
           print('Waiting for primary election...');
           while (true) {
@@ -70,6 +78,15 @@ services:
         }
       "
     restart: "no"
+    networks:
+      - divvydoo-network
+
+networks:
+  divvydoo-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
 
 volumes:
   mongodb_data:
