@@ -155,3 +155,19 @@ func (c *GroupController) GetMembers(ctx *gin.Context) {
 
 	utils.RespondWithJSON(ctx, http.StatusOK, members)
 }
+
+func (c *GroupController) GetUserGroups(ctx *gin.Context) {
+	userID, exists := ctx.Get("userID")
+	if !exists {
+		utils.RespondWithError(ctx, http.StatusUnauthorized, "User not authenticated")
+		return
+	}
+
+	groups, err := c.groupService.GetUserGroups(ctx.Request.Context(), userID.(string))
+	if err != nil {
+		utils.RespondWithError(ctx, utils.GetStatusCode(err), err.Error())
+		return
+	}
+
+	utils.RespondWithJSON(ctx, http.StatusOK, groups)
+}
